@@ -4,7 +4,7 @@ AntNet Algorithm  for The Network Simulator - ns-2 (www.isi.edu/nsnam/ns/)
 AntNet Algorithm - Ant-based routing in networks
 
 Antnet for NS2.34
-Antnet implementation for ns2.34 based on the version for ns2.33 by Richardson Lima description available at http://antnet.wordpress.com
+Antnet implementation for ns2.34 based on the version for ns2.33 by Richardson Lima description available at http://antnetalgorithm.blogspot.com.br and http://antnet.wordpress.com
 
 Matthew Orlinski at orlinskm@cs.man.ac.uk and Richardson Lima at richardsonlimasurfjiujitsu@gmail.com with suggestions/improvements
 
