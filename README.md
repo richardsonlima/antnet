@@ -1,4 +1,4 @@
-AntNet Algorithm  
+AntNet Algorithm  for The Network Simulator - ns-2 (www.isi.edu/nsnam/ns/)
 ======
 
 AntNet Algorithm - Ant-based routing in networks
