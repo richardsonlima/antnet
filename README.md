@@ -1,4 +1,4 @@
-antnet
+AntNet Algorithm  
 ======
 
 AntNet Algorithm - Ant-based routing in networks
