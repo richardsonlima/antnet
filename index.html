@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Antnet : AntNet Algorithm - Ant-based routing in networks" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Antnet</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/richardsonlima/antnet">View on GitHub</a>
+
+          <h1 id="project_title">Antnet</h1>
+          <h2 id="project_tagline">AntNet Algorithm - Ant-based routing in networks</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/richardsonlima/antnet/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/richardsonlima/antnet/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h3>
+<a name="antnet-is-an-algorithm-for-adaptive-best-effort-routing-in-ip-networks-antnets-design-is-based-on-the-ant-colony-optimization-aco-framework" class="anchor" href="#antnet-is-an-algorithm-for-adaptive-best-effort-routing-in-ip-networks-antnets-design-is-based-on-the-ant-colony-optimization-aco-framework"><span class="octicon octicon-link"></span></a>AntNet is an algorithm for adaptive best-effort routing in IP networks. AntNet's design is based on the Ant Colony Optimization (ACO) framework.</h3>
+
+<p>ACO features a multi-agent organization, stigmergic communication among the agents, distributed operations, use of a stochastic decision policy to construct solutions, stigmergic learning of the parameters of the decision policy.</p>
+
+<p>Antnet for NS2.34 Antnet implementation for ns2.34 based on the version for ns2.33 by Richardson Lima description available at <a href="http://antnetalgorithm.blogspot.com.br">http://antnetalgorithm.blogspot.com.br</a> and <a href="http://antnet.wordpress.com">http://antnet.wordpress.com</a></p>
+
+<p>REMEMBER, YOU NEED GCC4.0 TO INSTALL NS2.34 WARNING If you have made any alterations to your NS2.34 (e.g. installing newer protocols), installing with the below instructions MAY overright your changes. If you have made alterations and you still want to use this protocol. The changelog below should be helpful to you in getting Antnet into ns2.34 without destroying your additions.</p>
+
+<h4>
+<a name="instructions-copy-the-files-provided-into-ns234-directory-as-is" class="anchor" href="#instructions-copy-the-files-provided-into-ns234-directory-as-is"><span class="octicon octicon-link"></span></a>Instructions copy the files provided into NS2.34 directory as is.</h4>
+
+<pre><code>Run: ./configure make
+</code></pre>
+
+<p>Finally, enjoy</p>
+
+<p>Change log for none destructive install Additions we're made to ns2.34 to get antnet to work. The below is a guide only to be used in troubleshooting and ARE NOT COMPLETE INSTRUCTIONS. Not all changes are documented below but with these and following the clear advice on <a href="http://elmurod.net/wps/?p=157">http://elmurod.net/wps/?p=157</a> on how to add a new routing protocol (TIP: Follow the instructions on the site substituting his protocol name "wfrp" for "antnet" and then make the changes below. This should get you antnet compiled and working)</p>
+
+<pre><code>// =========================== // queue/drop-tail.h // =========================== [Code]
+
+public: int getlength();
+
+[/Code] Added to the DropTail class
+
+// =========================== // queue/drop-tail.cc // =========================== [Code]
+
+int DropTail::getlength() { return q_-&gt;length(); } [/Code] add this method to queue/drop-tail.cc
+
+// =========================== // queue/priqueue.cc // =========================== [Code]
+
+case PT_ANT: if (ch-&gt;direction() == hdr_cmn::UP) { recvHighPriority(p, h); } else { Queue::recv(p, h); } break; [/Code] Added to queue/priqueue.cc instead
+
+// =========================== // common/packet.h // =========================== [Code]
+
+name_[PT_ANT] = "Ant"; [/Code] Basically anywhere that the WFRP tutorial (The website above) tells you to put PT_WFRP, put PT_ANT instead
+
+// =========================== // trace/cmu-trace.cc // =========================== [Code]
+include
+
+[/Code] Remember to include this in cmu-trace.cc
+
+[Code]
+
+void CMUTrace::format_antnet(Packet *p, int offset) { struct hdr_ant_pkt *ah = HDR_ANT_PKT(p);
+
+if (pt_-&gt;tagged()) {
+sprintf(pt_-&gt;buffer() + offset,
+    "-ant:o %d -ant:s %d -ant:l %d ",
+    ah-&gt;pkt_src(), ah-&gt;pkt_seq_num(), ah-&gt;pkt_len());
+}
+else if (newtrace_) {
+sprintf(pt_-&gt;buffer() + offset,
+    "-P ant -Po %d -Ps %d -Pl %d ",
+    ah-&gt;pkt_src(), ah-&gt;pkt_seq_num(), ah-&gt;pkt_len());
+}
+else {
+sprintf(pt_-&gt;buffer() + offset,
+    "[ant %d %d %d] ",
+    ah-&gt;pkt_src(), ah-&gt;pkt_seq_num(), ah-&gt;pkt_len());
+}
+
+} [/Code] The trace format function in cmu-trace.cc is the above taken from the ns2.33 version by Richardson Lima
+
+[Code]
+
+case PT_ANT: format_antnet(p, offset); break; [/Code] Add this to the function CMUTrace::format(.....
+
+// =========================== // tcl/lib/ns-default.tcl // =========================== [Code]
+Defaults for Antnet
+
+Agent/Antnet set num_nodes_x_ 4 Agent/Antnet set num_nodes_y_ 4 Agent/Antnet set num_nodes_ 16 Agent/Antnet set r_factor_ 0.001 Agent/Antnet set timer_ant_ 0.03 [/Code] Add this at the end
+
+// =========================== // tcl/lib/ns-default.tcl // =========================== [Code]
+
+Simulator instproc get-drop-queue { n1 n2 } { $self instvar link_ set q [$link_($n1:$n2) queue] return $q } [/Code] Add this code to tcl/lib/ns-lib.tcl
+</code></pre>
+
+<p>AntNet, as well as most of the other ACO routing algorithms designed after AntNet, exhibits a number of interesting properties: it works in a fully distributed way, is highly adaptive to network and traffic changes, uses lightweight mobile agents (called ants) for active path sampling, is robust to agent failures, provides multipath routing, and automatically takes care of data load spreading." Dr. Gianni Di Caro is AntNet Creator and Currently senior researcher at Istituto Dalle Molle di Studi sull'Intelligenza Artificiale (IDSIA), in Lugano, Switzerland. The AntNet Algorithm for the Network Simulator NS-2 (<a href="http://www.isi.edu/nsnam/ns">www.isi.edu/nsnam/ns</a>) is maintained by <a href="https://github.com/RichardsonLima" class="user-mention">@RichardsonLima</a> (<a href="http://br.linkedin.com/in/richardsonlima">http://br.linkedin.com/in/richardsonlima</a>). </p>
+
+<pre><code>Matthew Orlinski at orlinskm@cs.man.ac.uk and Richardson Lima at richardsonlimasurfjiujitsu@gmail.com with suggestions/improvements
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Antnet maintained by <a href="https://github.com/richardsonlima">richardsonlima</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
