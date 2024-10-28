@@ -132,7 +132,7 @@ Add this code to tcl/lib/ns-lib.tcl
 @misc{antnet,
   author = {LIMA, Richardson Edson de},
   title = {AntNet Algorithm for The Network Simulator (NS2)},
-  year = {2012},
+  year = {2009},
   publisher = {GitHub},
   journal = {GitHub repository},
   howpublished = {\url{https://github.com/richardsonlima/antnet}}
