@@ -125,3 +125,16 @@ Simulator instproc get-drop-queue { n1 n2 } {
 ```
 
 Add this code to tcl/lib/ns-lib.tcl
+
+## 📃 Citation
+
+```bibtex
+@misc{antnet,
+  author = {LIMA, Richardson Edson de},
+  title = {AntNet Algorithm for The Network Simulator (NS2)},
+  year = {2012},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/richardsonlima/antnet}}
+}
+```
