@@ -42,6 +42,7 @@
 
 #include "ant_pkt.h"
 #include "antnet_common.h"
+#include "antnet_math.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /// \brief Represents an entry in routing table
@@ -73,7 +74,12 @@ class antnet_rtable {
 		antnet_rtable() {
 			rnum = new RNG((long int)CURRENT_TIME);
 		}
-		
+
+		/// Destructor - releases the random number generator
+		~antnet_rtable() {
+			delete rnum;
+		}
+
 		/// Method to add an entry in routing table
 		// Parameters: destination node, neighbor node, pheromone value
 		void add_entry(nsaddr_t destination, nsaddr_t neighbor, double phvalue);
@@ -82,11 +88,16 @@ class antnet_rtable {
 		/// returns destination node for given source node
 		nsaddr_t calc_destination(nsaddr_t source);
 		/// returns next hop node for given source destination pair
-		// Parameters: source node, destination node, parent node
-		nsaddr_t calc_next(nsaddr_t source, nsaddr_t destination, nsaddr_t parent);
+		// Parameters: source node, destination node, parent node, number of
+		// candidate neighbors at source (passed in rather than read from a
+		// global, since a global N would be silently overwritten by whichever
+		// node last called update() in this single-process simulation)
+		nsaddr_t calc_next(nsaddr_t source, nsaddr_t destination, nsaddr_t parent, int num_neighbors);
 		/// updates an entry in routing table
-		// Parameters: destination node, neighbor node
-		void update(nsaddr_t destination, nsaddr_t neighbor);
+		// Parameters: destination node, neighbor node, reinforcement factor
+		// (passed in rather than read from a global, for the same reason as
+		// calc_next's num_neighbors: r_factor_ is a per-agent tcl-bound value)
+		void update(nsaddr_t destination, nsaddr_t neighbor, double r_factor);
 };
 
 #endif

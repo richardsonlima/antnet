@@ -10,3 +10,13 @@
 *.lai
 *.la
 *.a
+
+# Editor backup files
+*~
+*.swp
+
+# Build artifacts from tests/
+tests/test_antnet_math
+
+# AntNet routing-table dumps produced by `Antnet print_rtable`
+rtable.txt

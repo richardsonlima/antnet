@@ -38,7 +38,7 @@
 int
 get_num_neighbors(nsaddr_t node_addr) {
 	int count = 0;
-	Node *nd = nd->get_node_by_address(node_addr);
+	Node *nd = Node::get_node_by_address(node_addr);
 	neighbor_list_node* nb = nd->neighbor_list_;
 	while(nb != NULL) {
 		count ++;

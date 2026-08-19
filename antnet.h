@@ -106,7 +106,7 @@ class Antnet: public Agent {
 		void create_backward_ant_pkt(Packet*);	///< generate backward ant
 		void forward_ant_pkt(Packet*);		///< send a forward ant to next hop as per AntNet algorithm
 		void backward_ant_pkt(Packet*);		///< send a backward ant to next hop as per AntNet algorithm
-		void memorize(Packet*);		///< add visited node to memory of forward ant
+		bool memorize(Packet*);		///< add visited node to memory of forward ant; returns false if the packet was dropped (memory full)
 		void update_table(Packet*);	///< update routing table
 		void update_traffic(Packet*);	///< update traffic model
 		

@@ -20,6 +20,33 @@ Run:
 ```
 Finally, enjoy
 
+## Code review notes (2026-08-19)
+
+The AntNet-specific files (`antnet.h/.cc`, `antnet_common.h/.cc`, `antnet_rtable.h/.cc`, `ant_pkt.h`, `antnet_traffic.h`) were reviewed and the following bugs were fixed:
+
+- **`calc_next()` silently ignored its own probability formula.** It computed the correct AntNet selection probability (pheromone + heuristic bias towards shorter queues, weighted by `ALPHA`) into a local `thisprob`, but then partitioned the random-selection range using the raw pheromone value instead — so the queue-length heuristic never actually influenced routing decisions. `calc_next()` now uses the computed probability, and the formula itself was extracted into dependency-free helpers in `antnet_math.h` (see "Tests" below).
+- **Missing `return` in `calc_next()`** when a destination had no routing-table entry, which is undefined behavior in C++. It now falls back to returning the parent node.
+- **Cross-node global-state bug.** `N` (neighbor count) and `r` (reinforcement factor) were plain global variables read by `antnet_rtable::calc_next()`/`update()`. Since every node's `Antnet` agent runs in the same process in ns-2's single-threaded event loop, one node's routing decision could silently use another node's neighbor count or reinforcement factor. Both are now passed in explicitly by the caller instead.
+- **Ant memory buffer overflow.** `Antnet::memorize()` appended to a fixed-size `pkt_memory_[MAX_NUM_NODES]` array with no bounds check; a path longer than `MAX_NUM_NODES` hops overflowed it. It now drops the packet instead, and callers were updated to stop touching the packet when that happens (it was previously used-after-free in that path too).
+- **Null-pointer dereference** in `print_neighbors()` for a node with no neighbors (a `do`/`while` dereferenced before checking).
+- **Uninitialized index** used to access `pkt_memory_[]` in `backward_ant_pkt()` if the current node wasn't found in the ant's memory; now guarded.
+- **Uninitialized-pointer idiom** (`Node *nd = nd->get_node_by_address(...)`) used in a few places to reach what is effectively a static lookup; replaced with `Node::get_node_by_address(...)`.
+- **Division by zero** in `initialize_rtable()` for a node with zero neighbors (`1.0/num_nb`).
+- **Memory leak**: `antnet_rtable`'s RNG was `new`'d with no matching `delete`; it now has a destructor.
+- Reduced `calc_next()` from up to 3 Tcl round-trips per neighbor (`get_queue_length()`) down to 1.
+
+`update_traffic()` (the traffic-model/adaptive-`r` method) is dead code — it's never called, per the original author's own comment — and was left alone beyond keeping it compiling.
+
+### Tests
+
+`antnet_math.h` holds the pure AntNet math (pheromone reinforcement/evaporation, link-selection probability) with no ns-2 dependency, so it can be unit tested standalone without an ns-2 source tree:
+
+```shell
+cd tests && make test
+```
+
+The rest of this repo (`antnet.cc`, `antnet_rtable.cc`, the `queue/`/`trace/`/`tcl/` patches, ...) cannot be compiled or run in isolation — it's an add-on that expects to live inside a full ns-2.34 source tree (`agent.h`, `node.h`, `packet.h`, OTcl/TclCL, etc. aren't part of this repo). Validating those files requires copying them into an ns-2.34 tree per the instructions below and building/running a simulation there.
+
 ## Instructions
 
 Change log for none destructive install

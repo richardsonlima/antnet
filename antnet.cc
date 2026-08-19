@@ -37,8 +37,7 @@
 #include <math.h> 
 
 int hdr_ant_pkt::offset_;	///< to access ant packet header
-extern double r;		///< reinforcement factor
-extern int N;			///< number of neighbors of a node
+extern double r;		///< reinforcement factor (only used by the unused update_traffic() traffic model)
 extern int NUM_NODES;		///< total number of nodes in the topology
 
 ///////////////////////////////////////////////////////////////////////////
@@ -192,7 +191,7 @@ void Antnet::send_ant_pkt() {
 	ch->error() = 0;
 	ch->addr_type() = NS_AF_INET;
 	// generate next hop as per AntNet algorithm
-	next = rtable_.calc_next(addr(), ah->pkt_dst(), addr());
+	next = rtable_.calc_next(addr(), ah->pkt_dst(), addr(), get_num_neighbors(addr()));
 	// if next hop same as this node, release packet
 	if(next == addr()) {
 		Packet::free(p);
@@ -226,14 +225,17 @@ void Antnet::recv_ant_pkt(Packet* p) {
 	
 	if(ch->direction() == hdr_cmn::DOWN) {	// forward ant
 		if(addr() == ah->pkt_dst()) {	// destination node
-			// add this node to memory
-			memorize(p);
+			// add this node to memory; bail out if memorize() dropped the
+			// packet (memory full) - it is no longer valid to touch
+			if(!memorize(p))
+				return;
 			// create backward ant
 			create_backward_ant_pkt(p);
 		}
 		else {		// not destination node
 			// add this node to memory
-			memorize(p);
+			if(!memorize(p))
+				return;
 			// send forward ant to next hop node as determined by AntNet algorithm
 			forward_ant_pkt(p);
 		}
@@ -256,13 +258,15 @@ void Antnet::recv_ant_pkt(Packet* p) {
 }
 
 ///////////////////////////////////////////////////////////////////
-/// Method to build meory of forward ant
+/// Method to build memory of forward ant
+/// Returns false if the packet was dropped (memory full) - in that case
+/// the packet is no longer valid and the caller must not touch it again.
 ///////////////////////////////////////////////////////////////////
-void Antnet::memorize(Packet* p) {
+bool Antnet::memorize(Packet* p) {
 	struct hdr_ant_pkt* tmp = HDR_ANT_PKT(p);	// ant header
-	
+
 	double time = CURRENT_TIME - tmp->pkt_start_time();	// trip time to this node
-	
+
 	// If node revisited, there is a loop, remove loop and corresponding memory
 	for(int i=0; i<tmp->pkt_mem_size(); i++) {
 		if(tmp->pkt_memory_[i].node_addr == addr()) {
@@ -271,11 +275,21 @@ void Antnet::memorize(Packet* p) {
 			for(int j=0; j <= i; j++) {
 				tmp->pkt_memory_[j].trip_time += t;
 			}
-			return;
+			return true;
 		}
 	}
-	
+
 	// add current node to memory
+	// pkt_memory_ is a fixed-size array (MAX_NUM_NODES entries); a path
+	// longer than that would overflow it, so guard against it rather than
+	// writing past the end of the packet's memory.
+	if(tmp->pkt_mem_size() >= MAX_NUM_NODES) {
+		if(DEBUG)
+			fprintf(stderr, "memorize: ant memory full (%d entries) at node %d, dropping\n",
+			        MAX_NUM_NODES, addr());
+		drop(p, DROP_RTR_ROUTE_LOOP);
+		return false;
+	}
 	tmp->pkt_memory_[tmp->pkt_mem_size()].node_addr = addr();
 	tmp->pkt_memory_[tmp->pkt_mem_size()].trip_time = time;
 	tmp->pkt_mem_size() = tmp->pkt_mem_size()+1;
@@ -283,6 +297,7 @@ void Antnet::memorize(Packet* p) {
 	if(DEBUG) {
 		fprintf(stdout,"adding %d to memory of pkt %d\n", addr(), tmp->pkt_seq_num());
 	}
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -295,7 +310,7 @@ void Antnet::forward_ant_pkt(Packet* p) {
 
 	nsaddr_t parent = ih->saddr();	// parent node
 	// find next hop node as per AntNet algorithm
-	nsaddr_t next = rtable_.calc_next(addr(), ah->pkt_dst(), parent);
+	nsaddr_t next = rtable_.calc_next(addr(), ah->pkt_dst(), parent, get_num_neighbors(addr()));
 	// if next hop is this node or parent node, dead end, release packet
 	if(next == addr() || next == parent) {
 		Packet::free(p);
@@ -349,12 +364,23 @@ void Antnet::backward_ant_pkt(Packet* p) {
 	struct hdr_ant_pkt* ah = HDR_ANT_PKT(p);
 	
 	// find node previous to this node in memory
-	int index;
+	int index = -1;
 	for(int i = ah->pkt_mem_size()-1; i >= 0; i--) {
 		if(ah->pkt_memory_[i].node_addr == addr()) {
 			index = i-1;
 			break;
 		}
+	}
+	// This node should always be a non-first entry in the ant's memory by
+	// the time a backward ant reaches it (the entry at index 0 is always
+	// the original source, which recv_ant_pkt() handles as a terminal case
+	// before backward_ant_pkt() is ever called). Guard against the invariant
+	// being violated instead of indexing the memory array with -1.
+	if(index < 0) {
+		if(DEBUG)
+			fprintf(stderr, "backward_ant_pkt: node %d not found (as a non-source hop) in ant memory, dropping\n", addr());
+		drop(p, DROP_RTR_ROUTE_LOOP);
+		return;
 	}
 	// next hop node determined from memory
 	ch->next_hop() = ah->pkt_memory_[index].node_addr;
@@ -502,17 +528,14 @@ void Antnet::update_table(Packet* p) {
 		fprintf(stdout,"updating ph at %d\n", addr());
 		fprintf(stdout,"next: %d\n",next);
 	}
-		
-	nsaddr_t node_addr = addr();
-	N = get_num_neighbors(node_addr);
-	
+
 	// routing table is updated for all the destination nodes that are visited after the neighbor node
 	// update pheromone value corresponding to neighbor node and destination nodes visited thereafter
 	for(int index = i; index < ah->pkt_mem_size(); index++) {
-		// read destination nodef rom memory
+		// read destination node from memory
 		dest = ah->pkt_memory_[index].node_addr;
-		// update pheromone valu fro neighbor node and this destination node
-		rtable_.update(dest, next);		
+		// update pheromone value for neighbor node and this destination node
+		rtable_.update(dest, next, r_factor_);
 	}
 }
 
@@ -522,10 +545,17 @@ void Antnet::update_table(Packet* p) {
 void Antnet::initialize_rtable() {
 	//NUM_NODES = num_nodes_x_ * num_nodes_y_;
 	NUM_NODES = num_nodes_;		// set number of nodes in topology (read from tcl script)
-	r = r_factor_;	// set reinforcement factor (read from tcl script)
 	nsaddr_t node_addr = addr();
 	int num_nb = get_num_neighbors(node_addr);
-	Node *nd = nd->get_node_by_address(addr());
+	Node *nd = Node::get_node_by_address(addr());
+	if(num_nb == 0) {
+		// isolated node: nothing to route through, avoid 1.0/num_nb below
+		if(DEBUG)
+			fprintf(stderr, "initialize_rtable: node %d has no neighbors\n", addr());
+		FILE *fp = fopen(file_rtable,"w");
+		fclose(fp);
+		return;
+	}
 	// add destination entry for each node in topology
 	for(int i = 0; i < NUM_NODES; i++) {
 		if(addr() != i) {
@@ -554,15 +584,17 @@ void
 Antnet::print_neighbors() {
 	nsaddr_t node_addr = addr();
 	fprintf(stdout,"addr: %d\tra_addr:%d\n",addr(), ra_addr());
-	Node *n = n->get_node_by_address(node_addr);
+	Node *n = Node::get_node_by_address(node_addr);
 	fprintf(stdout,"node id: %d\tnode address: %d\n", n->nodeid(), n->address());
 	fprintf(stdout,"Neighbors:\n");
+	// use a while loop rather than do/while so an isolated node (empty
+	// neighbor list) doesn't dereference a null nb on the first iteration
 	neighbor_list_node* nb = n->neighbor_list_;
-	do {
+	while(nb != NULL) {
 		int neigh = nb->nodeid;
 		printf("%d\n",neigh);
 		nb = nb->next;
-	}while(nb != NULL);
+	}
 }
 
 //////////////////////////////////////////////////////////
