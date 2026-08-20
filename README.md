@@ -72,7 +72,7 @@ AntNet's core mechanics, **forward ants** that sample paths and time trip length
 This codebase has a documented lineage across three phases of academic/open-source work:
 
 1. **Original ns-2 port (ns-2.28)** by **Lavina Jain**, building on the AntNet algorithm for the paper *"Ant Colony Optimisation Based Routing on NS-2"* (V. Laxmi, L. Jain, M. S. Gaur, WCSN, India, December 2006), whose citation request is preserved verbatim in the header of every `antnet.*` / `antnet_rtable.*` / `antnet_common.*` source file in this repository.
-2. **Port and behavioral alignment to ns-2.33**, by **Richardson Lima** (contato@richardsonlima.com.br), who adapted Jain's implementation so its routing behavior matches Di Caro's original AntNet proposal, and documented the port and its usage at [antnetalgorithm.blogspot.com](http://antnetalgorithm.blogspot.com.br) and [antnet.wordpress.com](http://antnet.wordpress.com) starting in 2009, the primary public reference for running AntNet inside ns-2 that predates this repository.
+2. **Port and behavioral alignment to ns-2.33**, by **Richardson Lima** (contato@richardsonlima.com.br, [ORCID: 0009-0005-9122-6543](https://orcid.org/0009-0005-9122-6543)), who adapted Jain's implementation so its routing behavior matches Di Caro's original AntNet proposal, and documented the port and its usage at [antnetalgorithm.blogspot.com](http://antnetalgorithm.blogspot.com.br) and [antnet.wordpress.com](http://antnet.wordpress.com) starting in 2009, the primary public reference for running AntNet inside ns-2 that predates this repository.
 3. **Port to ns-2.34** in this repository, with suggestions and improvements from **Matthew Orlinski** (University of Manchester, orlinskm@cs.man.ac.uk) and Richardson Lima, plus a **2026 correctness/security review pass** (see [Engineering Notes](#engineering-notes--code-review-log)) that fixed several memory-safety and algorithmic-correctness bugs inherited from the earlier ports, and added the first automated test coverage the project has had (`antnet_math.h` + `tests/test_antnet_math.cc`).
 
 If you build on this repository, please cite it using the entry in [How to Cite This Software](#how-to-cite-this-software), and consider citing the original AntNet paper above for the algorithm itself.
@@ -331,9 +331,12 @@ The list below situates this implementation in the broader AntNet / ACO-routing 
   year = {2009},
   publisher = {GitHub},
   journal = {GitHub repository},
-  howpublished = {\url{https://github.com/richardsonlima/antnet}}
+  howpublished = {\url{https://github.com/richardsonlima/antnet}},
+  note = {Richardson Edson de Lima, ORCID: \url{https://orcid.org/0009-0005-9122-6543}}
 }
 ```
+
+Author ORCID: [0009-0005-9122-6543](https://orcid.org/0009-0005-9122-6543).
 
 If you use or extend the AntNet algorithm itself (as opposed to this specific ns-2 port), please also cite Di Caro & Dorigo's original 1998 paper (item 1 in [Related Work](#related-work-and-further-reading)).
 
