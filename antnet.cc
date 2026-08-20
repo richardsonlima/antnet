@@ -66,7 +66,7 @@ static class AntnetClass : public TclClass {
 /// tcl binding for agent parameters
 /// default values defined in ns-default.tcl
 ///////////////////////////////////////////////////////////////////////////
- Antnet::Antnet(nsaddr_t id) : Agent(PT_ANT), ant_timer_(this), dmux_(0) {
+ Antnet::Antnet(nsaddr_t id) : Agent(PT_ANT), rtable_(id), ant_timer_(this), dmux_(0) {
 	
 	bind("num_nodes_", &num_nodes_);	// number of nodes in topology
 	bind("num_nodes_x_", &num_nodes_x_);	// number of nodes in row (for regular mesh topology)
@@ -401,6 +401,9 @@ void Antnet::backward_ant_pkt(Packet* p) {
 int Antnet::get_win_size(nsaddr_t dest) {
 	int count = 0;
 	window_t::iterator iterWin = window_.find(dest);
+	// dest may not have any observations in the window yet.
+	if(iterWin == window_.end())
+		return 0;
 	triptime_t win_tt = (*iterWin).second;
 	triptime_t::iterator itertt;
 	for(itertt = win_tt.begin(); itertt != win_tt.end(); itertt++) {
@@ -545,6 +548,18 @@ void Antnet::update_table(Packet* p) {
 void Antnet::initialize_rtable() {
 	//NUM_NODES = num_nodes_x_ * num_nodes_y_;
 	NUM_NODES = num_nodes_;		// set number of nodes in topology (read from tcl script)
+	// pkt_memory_ in hdr_ant_pkt is a fixed MAX_NUM_NODES-entry array (see
+	// ant_pkt.h); a topology configured with more nodes than that will
+	// still run, but forward ants whose path exceeds MAX_NUM_NODES hops
+	// get silently dropped by memorize()'s bounds check. Warn once (from
+	// node 0) instead of leaving that to be rediscovered via dropped-packet
+	// counts.
+	if(num_nodes_ > MAX_NUM_NODES && addr() == 0) {
+		fprintf(stderr,
+		        "initialize_rtable: num_nodes_ (%d) exceeds MAX_NUM_NODES (%d) in antnet_common.h; "
+		        "ants on paths longer than %d hops will be dropped. Increase MAX_NUM_NODES and recompile "
+		        "for this topology.\n", num_nodes_, MAX_NUM_NODES, MAX_NUM_NODES);
+	}
 	nsaddr_t node_addr = addr();
 	int num_nb = get_num_neighbors(node_addr);
 	Node *nd = Node::get_node_by_address(addr());

@@ -71,8 +71,16 @@ class antnet_rtable {
 	public:
 
 		/// Constructor
-		antnet_rtable() {
-			rnum = new RNG((long int)CURRENT_TIME);
+		// `node_addr` is mixed into the RNG seed alongside the simulation
+		// clock. Every Antnet agent's rtable_ is normally constructed
+		// during Tcl topology setup, i.e. at CURRENT_TIME == 0 for every
+		// node - seeding from the clock alone (as this used to) gave every
+		// node's RNG the same seed, correlating calc_destination()'s and
+		// calc_next()'s "random" draws across the whole topology instead of
+		// making them independent per node. +1 avoids a seed of exactly 0
+		// for node 0 at time 0.
+		antnet_rtable(nsaddr_t node_addr) {
+			rnum = new RNG((long int)CURRENT_TIME + node_addr + 1);
 		}
 
 		/// Destructor - releases the random number generator
